@@ -1025,9 +1025,40 @@ body {
                 answer = response.content
                 img_anim_slot.empty()
 
-        with st.chat_message("assistant"):
-            render_answer_with_copy(answer)
+        # --- Split accuracy line from main answer ---
+        accuracy_line = ""
+        clean_answer = answer
+        if st.session_state.mode == "PDF":
+            lines = answer.strip().splitlines()
+            for i, line in enumerate(lines):
+                if line.strip().lower().startswith("accuracy:"):
+                    accuracy_line = line.strip()
+                    clean_answer = "\n".join(lines[:i] + lines[i+1:]).strip()
+                    break
 
+        with st.chat_message("assistant"):
+            render_answer_with_copy(clean_answer)
+            if accuracy_line:
+                # Extract percentage for color coding
+                import re
+                match = re.search(r'(\d+)', accuracy_line)
+                pct = int(match.group(1)) if match else 0
+                if pct >= 75:
+                    color = "#22c55e"   # green
+                elif pct >= 45:
+                    color = "#f59e0b"   # amber
+                else:
+                    color = "#ef4444"   # red
+                st.markdown(
+                    f"""<div style="margin-top:10px;padding:8px 14px;border-radius:8px;
+                        background:rgba(0,0,0,0.05);border-left:4px solid {color};
+                        display:inline-block;font-size:0.85rem;font-weight:600;color:{color};">
+                        📊 {accuracy_line}
+                    </div>""",
+                    unsafe_allow_html=True
+                )
+
+        # Save the full answer (with accuracy) to storage
         if st.session_state.is_guest:
             st.session_state.guest_messages.append(("assistant", answer))
         else:
