@@ -886,7 +886,18 @@ body {
                 with st.spinner("Thinking..."):
                     docs = st.session_state.vector_db.similarity_search(question, k=6)
                     chain = create_stuff_documents_chain(load_llm(), ChatPromptTemplate.from_template(
-                        "Context:\n{context}\n\nQuestion:\n{input}\n\nIf not found say: Information not found in document."
+                        "You are an AI assistant that answers questions using the provided context.\n\n"
+                        "Instructions:\n"
+                        "1. Generate the best possible answer to the user's question using the context.\n"
+                        "2. After generating the answer, estimate how accurate the answer is based on how well it matches the provided context.\n"
+                        "3. Print the answer normally.\n"
+                        "4. On the next line, print the accuracy in this exact format: Accuracy: XX%\n\n"
+                        "Rules:\n"
+                        "- The accuracy must be between 0% and 100%.\n"
+                        "- Do not print explanations about the accuracy.\n"
+                        "- Only show the answer followed by the accuracy line.\n"
+                        "- If information is not found in the document, say: Information not found in document. Then print: Accuracy: 0%\n\n"
+                        "Context:\n{context}\n\nQuestion:\n{input}"
                     ))
                     result = chain.invoke({"context": docs, "input": question})
                     answer = result if isinstance(result, str) else result.get("output_text", str(result))
