@@ -920,7 +920,7 @@ body {
             st.caption("Upload an image or use your live camera.")
         st.divider()
 
-        img_source = st.radio("Image Source", ["📁 Upload Image", "📷 Live Camera"],
+        img_source = st.radio("Image Source", ["📁 Upload Image", "📷 Instant analyzer"],
                               horizontal=True, key="img_source")
 
         if img_source == "📁 Upload Image":
