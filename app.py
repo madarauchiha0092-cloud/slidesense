@@ -371,6 +371,86 @@ if not st.session_state.authenticated and not st.session_state.is_guest:
                 st.session_state.guest_messages = []
                 st.rerun()
 
+    # ---- Animated Credits Footer ----
+    st.markdown("<div style='margin-top:40px;'></div>", unsafe_allow_html=True)
+    components.html("""<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+  body {
+    margin: 0;
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 90px;
+    font-family: 'Inter', sans-serif;
+  }
+  .credits-wrap {
+    text-align: center;
+    max-width: 700px;
+    padding: 0 16px;
+  }
+  .credits-text {
+    font-size: 13px;
+    color: #888;
+    line-height: 2;
+    letter-spacing: 0.3px;
+  }
+  .word {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: wordIn 0.4s ease forwards;
+    margin-right: 4px;
+  }
+  .highlight {
+    font-weight: 600;
+    background: linear-gradient(135deg, #6C63FF 0%, #48CAE4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  @keyframes wordIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="credits-wrap">
+  <div class="credits-text" id="credits"></div>
+</div>
+<script>
+  const parts = [
+    { text: "The", highlight: false },
+    { text: "Project", highlight: false },
+    { text: "Developed", highlight: false },
+    { text: "By", highlight: false },
+    { text: "Katteboina Mahesh,", highlight: true },
+    { text: "Jonalagadda Navaneeth Chowdary", highlight: true },
+    { text: "and", highlight: false },
+    { text: "Muppalla Chaitra Sahasra", highlight: true },
+    { text: "Under", highlight: false },
+    { text: "CSE (Data Science)", highlight: true },
+    { text: "Department", highlight: false },
+    { text: "Guided", highlight: false },
+    { text: "by", highlight: false },
+    { text: "Rallabandi CH S N P Sairam", highlight: true },
+  ];
+
+  const container = document.getElementById('credits');
+  parts.forEach((part, i) => {
+    const span = document.createElement('span');
+    span.className = 'word' + (part.highlight ? ' highlight' : '');
+    span.textContent = part.text + ' ';
+    span.style.animationDelay = (i * 0.12) + 's';
+    container.appendChild(span);
+  });
+</script>
+</body>
+</html>""", height=90)
+
     st.stop()
 
 
