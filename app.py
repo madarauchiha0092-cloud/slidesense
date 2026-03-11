@@ -995,7 +995,7 @@ body {
                         "2. After generating the answer, estimate how accurate the answer is based on how well it matches the provided context.\n"
                         "3. Print the answer normally.\n"
                         "4. Leave exactly TWO blank lines after the answer.\n"
-                        "5. Then on a new line, print the accuracy in this exact format: Accuracy: XX%\n\n"
+                        "5. Then on a new line, print the accuracy in this exact format: Accuracy: XX%\n"
                         "Rules:\n"
                         "- The accuracy must be between 0% and 100%.\n"
                         "- Do not print explanations about the accuracy.\n"
