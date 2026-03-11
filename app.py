@@ -160,10 +160,34 @@ def render_logo():
         </div>""", unsafe_allow_html=True)
 
 
-def render_answer_with_copy(answer: str) -> None:
+def render_answer_with_copy(answer: str, accuracy_line: str = "", accuracy_color: str = "") -> None:
     st.markdown(answer)
     safe_text = json.dumps(answer)
+
+    # Build accuracy badge HTML (only for PDF mode when accuracy exists)
+    if accuracy_line and accuracy_color:
+        acc_html = f"""
+        <div style="
+            margin-bottom:10px;
+            padding:8px 14px;
+            border-radius:8px;
+            background:rgba(0,0,0,0.05);
+            border-left:4px solid {accuracy_color};
+            display:inline-block;
+            font-size:0.85rem;
+            font-weight:600;
+            color:{accuracy_color};
+        ">
+            📊 {accuracy_line}
+        </div>
+        <br>"""
+        extra_height = 55
+    else:
+        acc_html = ""
+        extra_height = 0
+
     components.html(f"""
+        {acc_html}
         <script>
         function copyText() {{
             var text = {safe_text};
@@ -194,7 +218,7 @@ def render_answer_with_copy(answer: str) -> None:
                    border:1px solid #6C63FF;color:#6C63FF;
                    background:transparent;cursor:pointer;font-size:12px;">
             📋 Copy
-        </button>""", height=45)
+        </button>""", height=45 + extra_height)
 
 
 # -------------------- AUTH --------------------
@@ -941,7 +965,7 @@ body {
     for role, content in messages:
         with st.chat_message("user" if role == "user" else "assistant"):
             if role == "assistant":
-                # ── Re-split stored answer so accuracy renders separately on replay ──
+                # ── Re-split stored answer so accuracy renders inside the copy block ──
                 import re as _re
                 _lines = content.strip().splitlines()
                 _acc_line = ""
@@ -951,20 +975,12 @@ body {
                         _acc_line = _l.strip()
                         _clean = "\n".join(_lines[:_i] + _lines[_i+1:]).strip()
                         break
-                render_answer_with_copy(_clean)
+                _acc_color = ""
                 if _acc_line:
                     _match = _re.search(r'(\d+)', _acc_line)
                     _pct = int(_match.group(1)) if _match else 0
-                    _color = "#22c55e" if _pct >= 75 else ("#f59e0b" if _pct >= 45 else "#ef4444")
-                    st.markdown("<br><br>", unsafe_allow_html=True)
-                    st.markdown(
-                        f"""<div style="margin-top:4px;padding:8px 14px;border-radius:8px;
-                            background:rgba(0,0,0,0.05);border-left:4px solid {_color};
-                            display:inline-block;font-size:0.85rem;font-weight:600;color:{_color};">
-                            📊 {_acc_line}
-                        </div>""",
-                        unsafe_allow_html=True
-                    )
+                    _acc_color = "#22c55e" if _pct >= 75 else ("#f59e0b" if _pct >= 45 else "#ef4444")
+                render_answer_with_copy(_clean, _acc_line, _acc_color)
             else:
                 st.markdown(content)
 
@@ -995,7 +1011,7 @@ body {
                         "2. After generating the answer, estimate how accurate the answer is based on how well it matches the provided context.\n"
                         "3. Print the answer normally.\n"
                         "4. Leave exactly TWO blank lines after the answer.\n"
-                        "5. Then on a new line, print the accuracy in this exact format: Accuracy: XX%\n"
+                        "5. Then on a new line, print the accuracy in this exact format: Accuracy: XX%\n\n"
                         "Rules:\n"
                         "- The accuracy must be between 0% and 100%.\n"
                         "- Do not print explanations about the accuracy.\n"
@@ -1141,28 +1157,15 @@ body {
                     clean_answer = "\n".join(lines[:i] + lines[i+1:]).strip()
                     break
 
-        with st.chat_message("assistant"):
-            render_answer_with_copy(clean_answer)
-            if accuracy_line:
-                match = re.search(r'(\d+)', accuracy_line)
-                pct = int(match.group(1)) if match else 0
-                if pct >= 75:
-                    color = "#22c55e"   # green
-                elif pct >= 45:
-                    color = "#f59e0b"   # amber
-                else:
-                    color = "#ef4444"   # red
+        # Compute accuracy color for new answer
+        acc_color = ""
+        if accuracy_line:
+            match = re.search(r'(\d+)', accuracy_line)
+            pct = int(match.group(1)) if match else 0
+            acc_color = "#22c55e" if pct >= 75 else ("#f59e0b" if pct >= 45 else "#ef4444")
 
-                # ── 2-line visual gap then accuracy badge ──
-                st.markdown("<br><br>", unsafe_allow_html=True)
-                st.markdown(
-                    f"""<div style="margin-top:4px;padding:8px 14px;border-radius:8px;
-                        background:rgba(0,0,0,0.05);border-left:4px solid {color};
-                        display:inline-block;font-size:0.85rem;font-weight:600;color:{color};">
-                        📊 {accuracy_line}
-                    </div>""",
-                    unsafe_allow_html=True
-                )
+        with st.chat_message("assistant"):
+            render_answer_with_copy(clean_answer, accuracy_line, acc_color)
 
         # Save the full answer (with accuracy) to storage
         if st.session_state.is_guest:
