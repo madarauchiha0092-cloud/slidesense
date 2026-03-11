@@ -941,7 +941,30 @@ body {
     for role, content in messages:
         with st.chat_message("user" if role == "user" else "assistant"):
             if role == "assistant":
-                render_answer_with_copy(content)
+                # ── Re-split stored answer so accuracy renders separately on replay ──
+                import re as _re
+                _lines = content.strip().splitlines()
+                _acc_line = ""
+                _clean = content
+                for _i, _l in enumerate(_lines):
+                    if _l.strip().lower().startswith("accuracy:"):
+                        _acc_line = _l.strip()
+                        _clean = "\n".join(_lines[:_i] + _lines[_i+1:]).strip()
+                        break
+                render_answer_with_copy(_clean)
+                if _acc_line:
+                    _match = _re.search(r'(\d+)', _acc_line)
+                    _pct = int(_match.group(1)) if _match else 0
+                    _color = "#22c55e" if _pct >= 75 else ("#f59e0b" if _pct >= 45 else "#ef4444")
+                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"""<div style="margin-top:4px;padding:8px 14px;border-radius:8px;
+                            background:rgba(0,0,0,0.05);border-left:4px solid {_color};
+                            display:inline-block;font-size:0.85rem;font-weight:600;color:{_color};">
+                            📊 {_acc_line}
+                        </div>""",
+                        unsafe_allow_html=True
+                    )
             else:
                 st.markdown(content)
 
@@ -971,12 +994,13 @@ body {
                         "1. Generate the best possible answer to the user's question using the context.\n"
                         "2. After generating the answer, estimate how accurate the answer is based on how well it matches the provided context.\n"
                         "3. Print the answer normally.\n"
-                        "4. On the next line, print the accuracy in this exact format: Accuracy: XX%\n\n"
+                        "4. Leave exactly TWO blank lines after the answer.\n"
+                        "5. Then on a new line, print the accuracy in this exact format: Accuracy: XX%\n\n"
                         "Rules:\n"
                         "- The accuracy must be between 0% and 100%.\n"
                         "- Do not print explanations about the accuracy.\n"
-                        "- Only show the answer followed by the accuracy line.\n"
-                        "- If information is not found in the document, say: Information not found in document. Then print: Accuracy: 0%\n\n"
+                        "- Only show the answer, followed by two blank lines, followed by the accuracy line.\n"
+                        "- If information is not found in the document, say: Information not found in document. Then leave two blank lines. Then print: Accuracy: 0%\n\n"
                         "Context:\n{context}\n\nQuestion:\n{input}"
                     ))
                     result = chain.invoke({"context": docs, "input": question})
@@ -1105,7 +1129,8 @@ body {
                 answer = response.content
                 img_anim_slot.empty()
 
-        # --- Split accuracy line from main answer ---
+        # ── Strip accuracy line from answer for separate rendering ──
+        import re
         accuracy_line = ""
         clean_answer = answer
         if st.session_state.mode == "PDF":
@@ -1119,8 +1144,6 @@ body {
         with st.chat_message("assistant"):
             render_answer_with_copy(clean_answer)
             if accuracy_line:
-                # Extract percentage for color coding
-                import re
                 match = re.search(r'(\d+)', accuracy_line)
                 pct = int(match.group(1)) if match else 0
                 if pct >= 75:
@@ -1129,8 +1152,11 @@ body {
                     color = "#f59e0b"   # amber
                 else:
                     color = "#ef4444"   # red
+
+                # ── 2-line visual gap then accuracy badge ──
+                st.markdown("<br><br>", unsafe_allow_html=True)
                 st.markdown(
-                    f"""<div style="margin-top:10px;padding:8px 14px;border-radius:8px;
+                    f"""<div style="margin-top:4px;padding:8px 14px;border-radius:8px;
                         background:rgba(0,0,0,0.05);border-left:4px solid {color};
                         display:inline-block;font-size:0.85rem;font-weight:600;color:{color};">
                         📊 {accuracy_line}
