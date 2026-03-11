@@ -19,6 +19,7 @@ import streamlit.components.v1 as components
 
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+from google.api_core.exceptions import ResourceExhausted
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -1003,24 +1004,32 @@ body {
                 answer = "⚠️ Please upload a PDF first."
             else:
                 with st.spinner("Thinking..."):
-                    docs = st.session_state.vector_db.similarity_search(question, k=6)
-                    chain = create_stuff_documents_chain(load_llm(), ChatPromptTemplate.from_template(
-                        "You are an AI assistant that answers questions using the provided context.\n\n"
-                        "Instructions:\n"
-                        "1. Generate the best possible answer to the user's question using the context.\n"
-                        "2. After generating the answer, estimate how accurate the answer is based on how well it matches the provided context.\n"
-                        "3. Print the answer normally.\n"
-                        "4. Leave exactly TWO blank lines after the answer.\n"
-                        "5. Then on a new line, print the accuracy in this exact format: Accuracy: XX%\n\n"
-                        "Rules:\n"
-                        "- The accuracy must be between 0% and 100%.\n"
-                        "- Do not print explanations about the accuracy.\n"
-                        "- Only show the answer, followed by two blank lines, followed by the accuracy line.\n"
-                        "- If information is not found in the document, say: Information not found in document. Then leave two blank lines. Then print: Accuracy: 0%\n\n"
-                        "Context:\n{context}\n\nQuestion:\n{input}"
-                    ))
-                    result = chain.invoke({"context": docs, "input": question})
-                    answer = result if isinstance(result, str) else result.get("output_text", str(result))
+                    try:
+                        docs = st.session_state.vector_db.similarity_search(question, k=6)
+                        chain = create_stuff_documents_chain(load_llm(), ChatPromptTemplate.from_template(
+                            "You are an AI assistant that answers questions using the provided context.\n\n"
+                            "Instructions:\n"
+                            "1. Generate the best possible answer to the user's question using the context.\n"
+                            "2. After generating the answer, estimate how accurate the answer is based on how well it matches the provided context.\n"
+                            "3. Print the answer normally.\n"
+                            "4. Leave exactly TWO blank lines after the answer.\n"
+                            "5. Then on a new line, print the accuracy in this exact format: Accuracy: XX%\n\n"
+                            "Rules:\n"
+                            "- The accuracy must be between 0% and 100%.\n"
+                            "- Do not print explanations about the accuracy.\n"
+                            "- Only show the answer, followed by two blank lines, followed by the accuracy line.\n"
+                            "- If information is not found in the document, say: Information not found in document. Then leave two blank lines. Then print: Accuracy: 0%\n\n"
+                            "Context:\n{context}\n\nQuestion:\n{input}"
+                        ))
+                        result = chain.invoke({"context": docs, "input": question})
+                        answer = result if isinstance(result, str) else result.get("output_text", str(result))
+                    except ResourceExhausted:
+                        answer = (
+                            "⚠️ **API quota exceeded.** The Gemini API free tier has a limited number of requests per minute.\n\n"
+                            "Please wait **60 seconds** and try again, or check your [Google AI Studio quota](https://aistudio.google.com/)."
+                        )
+                    except Exception as _e:
+                        answer = f"⚠️ **An error occurred:** {type(_e).__name__} — please try again."
         else:
             active_image = img_file or camera_file
             if not active_image:
@@ -1138,11 +1147,19 @@ body {
                 encoded = base64.b64encode(image_bytes).decode("utf-8")
                 mime = "image/jpeg" if (camera_file and not img_file) else \
                        ("image/png" if img_file.name.lower().endswith(".png") else "image/jpeg")
-                response = load_llm().invoke([HumanMessage(content=[
-                    {"type": "text", "text": question},
-                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}"}},
-                ])])
-                answer = response.content
+                try:
+                    response = load_llm().invoke([HumanMessage(content=[
+                        {"type": "text", "text": question},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}"}},
+                    ])])
+                    answer = response.content
+                except ResourceExhausted:
+                    answer = (
+                        "⚠️ **API quota exceeded.** The Gemini API free tier has a limited number of requests per minute.\n\n"
+                        "Please wait **60 seconds** and try again, or check your [Google AI Studio quota](https://aistudio.google.com/)."
+                    )
+                except Exception as _e:
+                    answer = f"⚠️ **An error occurred:** {type(_e).__name__} — please try again."
                 img_anim_slot.empty()
 
         # ── Strip accuracy line from answer for separate rendering ──
